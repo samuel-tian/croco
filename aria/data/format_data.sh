@@ -15,7 +15,7 @@ running_jobs=0
 mkdir -p "tmp_data"
 
 for ((i=$START_SEQ; i<$END_SEQ; i+=10)); do
-	$PYTHON "$ARIA_TOOLS"/projects/AriaSyntheticEnvironment/aria_synthetic_environments_downloader.py \
+	python3 "$ARIA_TOOLS"/projects/AriaSyntheticEnvironment/aria_synthetic_environments_downloader.py \
 		--set train \
 		--scene-ids "$i-$((i+9))" \
 		--cdn-file "$ROOT_DIR"/aria_synthetic.json \

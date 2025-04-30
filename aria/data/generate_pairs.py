@@ -185,21 +185,17 @@ def fast_generate(obs_df,
             if overlap < min_overlap or overlap > max_overlap:
                 continue
 
-            # if np.abs(idx2 - idx1) < min_traj_length:
-            #     continue
-            # if overlap > max_overlap or overlap < min_overlap:
-            #     continue
-            if (idx1, idx2) in found_pairs:
-                continue
-            
             t1, t2 = int(timestamps[idx1]/1e5), int(timestamps[idx2]/1e5)
+            out_pair = (t1, t2, vis, overlap)
+            if out_pair in found_pairs:
+                continue
+
             fname1, fname2 = "%07d" % (t1), "%07d" % (t2)
             img1 = os.path.join("rgb", f"vignette{fname1}.jpg")
             img2 = os.path.join("rgb", f"vignette{fname2}.jpg")
             img1_out = os.path.join("images", f"image{fname1}.jpg")
             img2_out = os.path.join("images", f"image{fname2}.jpg")
 
-            out_pair = (t1, t2, vis, overlap)
             shutil.copyfile(os.path.join(in_path, img1),
                             os.path.join(out_path, img1_out))
             shutil.copyfile(os.path.join(in_path, img2),
@@ -225,7 +221,7 @@ if __name__ == "__main__":
     root_dir = args.root
 
     scene_path = os.path.join(args.root, "tmp_data", args.scene)
-    out_path = os.path.join(args.root, f"s{args.scene}")
+    out_path = os.path.join(args.root, "croco_data", f"s{args.scene}")
     if os.path.exists(out_path):
         shutil.rmtree(out_path)
     os.makedirs(out_path, exist_ok=True)
