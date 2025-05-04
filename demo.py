@@ -3,6 +3,7 @@
 
 import torch
 from models.croco import CroCoNet
+from models.aligator import AligatorNet
 from PIL import Image
 import torchvision.transforms
 from torchvision.transforms import ToTensor, Normalize, Compose
@@ -20,10 +21,10 @@ def main():
     image2 = trfs(Image.open('assets/Chateau2.png').convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
     
     # load model 
-    ckpt = torch.load('pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth', 'cpu')
-    model = CroCoNet( **ckpt.get('croco_kwargs',{})).to(device)
+    ckpt = torch.load('pretrained_models/CroCo_V2_ViTBase_SmallDecoder.pth', 'cpu')
+    model = AligatorNet( **ckpt.get('croco_kwargs',{})).to(device)
     model.eval()
-    msg = model.load_state_dict(ckpt['model'], strict=True)
+    msg = model.load_state_dict(ckpt['model'], strict=False)
     
     # forward 
     with torch.inference_mode():

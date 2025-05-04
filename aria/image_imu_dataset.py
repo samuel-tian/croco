@@ -15,7 +15,7 @@ def consolidate_metadata(pairs_cache_file,
     # data directory contains separate subdirectories s0,s1,... for each scene
     # we combine all metadata for each scene into a single file for indexing
     all_image_pairs = []
-    all_imu = np.zeros((0,6,50))
+    all_imu = np.zeros((0,50,7))
     for subdir in os.listdir(data_dir):
         if not os.path.isdir(os.path.join(data_dir, subdir)):
             continue
@@ -73,6 +73,7 @@ def load_trajectories(data_dir, scene_num, image_pairs, pad_length=50):
     accel_y = p_splines[1](t_s, nu=2)
     accel_z = p_splines[2](t_s, nu=2)
     accel = np.vstack([accel_x, accel_y, accel_z])
+    accel = accel.T
 
     # compute gyrometer data
     rot = Rotation.from_quat(q, scalar_first = False)
@@ -90,12 +91,13 @@ def load_trajectories(data_dir, scene_num, image_pairs, pad_length=50):
 
         gyro.append(omega)
     gyro = np.array(gyro)
-    imu = np.vstack([accel, gyro.T])
+
+    imu = np.hstack([accel, gyro, np.expand_dims(t_s, axis=-1)])
 
     # concatenate all trajectories
-    # shape (num trajectories, imu dim (6), length per trajectory)
-    traj_imu = [imu[:,p[1]:p[2]] for p in image_pairs]
-    traj_imu = [np.pad(t, ((0, 0), (0, pad_length-t.shape[1])), 'constant') for t in traj_imu]
+    # shape (num trajectories, trajectory length, imu dim (7))
+    traj_imu = [imu[p[1]:p[2],:] for p in image_pairs]
+    traj_imu = [np.pad(t, ((0, pad_length-t.shape[0]), (0, 0)), 'constant') for t in traj_imu]
     traj_imu = np.array(traj_imu)
     return traj_imu
 
@@ -104,15 +106,16 @@ def load_trajectories(data_dir, scene_num, image_pairs, pad_length=50):
 class ImageIMUDataset(Dataset):
 
     def __init__(self,
-                 pairs_cache_file,
-                 imu_file,
+                 root_dir='.',
+                 pairs_cache_file='pairs_cache.txt',
+                 imu_file='imu.npy',
                  data_dir='./data/croco_data/'):
         super().__init__()
-        self.data_dir = data_dir
-        self.pairs_cache_file = pairs_cache_file
-        self.imu_file = imu_file
-        self.image_pairs = load_pairs_cache_file(self.pairs_cache_file, data_dir)
-        with open(imu_file, 'rb') as f:
+        self.data_dir = os.path.join(root_dir, data_dir)
+        self.pairs_cache_file = os.path.join(root_dir, pairs_cache_file)
+        self.imu_file = os.path.join(root_dir, imu_file)
+        self.image_pairs = load_pairs_cache_file(self.pairs_cache_file, self.data_dir)
+        with open(self.imu_file, 'rb') as f:
             self.imu_data = np.load(f)
         assert self.imu_data.shape[0] == len(self.image_pairs)
 
@@ -135,8 +138,9 @@ if __name__ == "__main__":
                          imu_file=imu_fname,
                          data_dir=data_dir)
 
-    dataset = ImageIMUDataset(pairs_cache_fname, imu_fname, data_dir)
-    print(len(dataset))
-    print(dataset.imu_data.shape)
-    print(dataset[0])
+    dataset = ImageIMUDataset(
+            root_dir='.',
+            pairs_cache_file=pairs_cache_fname,
+            imu_file=imu_fname,
+            data_dir=data_dir)
 
