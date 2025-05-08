@@ -15,9 +15,10 @@ from functools import partial
 
 from models.blocks import Block, DecoderBlock, PatchEmbed
 from models.pos_embed import get_2d_sincos_pos_embed, RoPE2D 
-from models.masking import RandomMask
+from models.masking import RandomMask, PaddedSequenceMask
 
-from models.imu_blocks import TransformerEncoderWithRoPE
+from models.imu_blocks import TransformerEncoderWithRoPE, MultimodalCrossAttention
+from models.imu_blocks import IMUDecoderBlock
 
 
 class AligatorNet(nn.Module):
@@ -43,6 +44,7 @@ class AligatorNet(nn.Module):
                  imu_enc_embed_dim=96,
                  imu_enc_depth=8,
                  imu_enc_num_heads=4,
+                 # decoder inputs are both imu and image data, so decoder params will be the same as above
                 ):
                 
         super(AligatorNet, self).__init__()
@@ -104,6 +106,16 @@ class AligatorNet(nn.Module):
 
         # decoder 
         self._set_decoder(enc_embed_dim, dec_embed_dim, dec_num_heads, dec_depth, mlp_ratio, norm_layer, norm_im2_in_dec)
+
+        self.imu_decoder_embed = nn.Linear(imu_enc_embed_dim, dec_embed_dim, bias=True)
+        self.decoder_blocks = nn.ModuleList([
+            IMUDecoderBlock(
+                dim=dec_embed_dim,
+                num_heads=dec_num_heads,
+                rope=self.rope,
+                qkv_bias=True)
+            for i in range(dec_depth)])
+        self.decoder_norm = norm_layer(dec_embed_dim)
         
         # prediction head 
         self._set_prediction_head(dec_embed_dim, patch_size)
@@ -118,7 +130,7 @@ class AligatorNet(nn.Module):
         self.mask_generator = RandomMask(num_patches, mask_ratio)
 
     def _set_imu_mask_generator(self, imu_seq_length, mask_ratio):
-        self.imu_mask_generator = RandomMask(imu_seq_length, mask_ratio)
+        self.imu_mask_generator = PaddedSequenceMask(imu_seq_length, mask_ratio)
 
     def _set_mask_token(self, dec_embed_dim):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, dec_embed_dim))
@@ -194,11 +206,17 @@ class AligatorNet(nn.Module):
             x = self.enc_norm(x)
             return x, pos, masks
 
-    def _encode_imu_sequence(self, imu, do_mask=False):
-        x = self.imu_encoder(imu)
-        return x
+    def _encode_imu_sequence(self, x, x_length, do_mask=True):
+        B, S, D = x.size()
+        if do_mask:
+            masks = self.imu_mask_generator(x)
+            masks[x_length:] = 1
+        else:
+            masks = torch.zeros((B, S), dtype=bool)
+        x = self.imu_encoder(x, masks)
+        return x, masks
  
-    def _decoder(self, feat1, pos1, masks1, feat2, pos2, return_all_blocks=False):
+    def _decoder(self, feat1, pos1, masks1, feat2, pos2, imu_feat, imu_mask, return_all_blocks=False):
         """
         return_all_blocks: if True, return the features at the end of every block 
                            instead of just the features from the last block (eg for some prediction heads)
@@ -208,6 +226,7 @@ class AligatorNet(nn.Module):
         # encoder to decoder layer 
         visf1 = self.decoder_embed(feat1)
         f2 = self.decoder_embed(feat2)
+        vis_imu_feat = self.imu_decoder_embed(imu_feat)
         # append masked tokens to the sequence
         B,Nenc,C = visf1.size()
         if masks1 is None: # downstreams
@@ -233,6 +252,13 @@ class AligatorNet(nn.Module):
             for blk in self.dec_blocks:
                 out, out2 = blk(out, out2, pos1, pos2)
             out = self.dec_norm(out)
+
+        #for blk in self.decoder_blocks:
+        #    out_masked_img, out_imu, out_unmasked_img = blk(out_masked_img, pos1, out_imu, out_unmasked_img, pos2)
+        #tmp = self.decoder_block(f1_, pos1, vis_imu_feat, f2, pos2)
+        #for i in tmp:
+        #    print(i.shape)
+
         return out
 
     def patchify(self, imgs):
@@ -263,11 +289,12 @@ class AligatorNet(nn.Module):
         imgs = x.reshape(shape=(x.shape[0], channels, h * patch_size, h * patch_size))
         return imgs
 
-    def forward(self, img1, img2, imu):
+    def forward(self, img1, img2, imu, imu_length):
         """
         img1: tensor of size B x 3 x img_size x img_size
         img2: tensor of size B x 3 x img_size x img_size
         imu:  tensor of size B x S x 7
+        imu_length:     size B x 1
         
         out will be    B x N x (3*patch_size*patch_size)
         masks are also returned as B x N just in case 
@@ -276,11 +303,11 @@ class AligatorNet(nn.Module):
         feat1, pos1, mask1 = self._encode_image(img1, do_mask=True)
         # encoder of the second image 
         feat2, pos2, _ = self._encode_image(img2, do_mask=False)
-
-        imu = self._encode_imu_sequence(imu)
+        
+        imu, imu_mask = self._encode_imu_sequence(imu, imu_length)
 
         # decoder 
-        decfeat = self._decoder(feat1, pos1, mask1, feat2, pos2)
+        decfeat = self._decoder(feat1, pos1, mask1, feat2, pos2, imu, imu_mask)
         # prediction head 
         out = self.prediction_head(decfeat)
         # get target

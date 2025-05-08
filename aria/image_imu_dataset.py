@@ -10,19 +10,22 @@ from scipy.spatial.transform import Rotation
 
 def consolidate_metadata(pairs_cache_file,
                          imu_file,
+                         imu_lengths_file,
                          data_dir='./data/croco_data',
                          pad_length=50):
     # data directory contains separate subdirectories s0,s1,... for each scene
     # we combine all metadata for each scene into a single file for indexing
     all_image_pairs = []
     all_imu = np.zeros((0,50,7))
+    all_imu_lengths = np.zeros((0))
     for subdir in os.listdir(data_dir):
         if not os.path.isdir(os.path.join(data_dir, subdir)):
             continue
         scene_num = int(subdir[1:])
         scene_pairs = load_image_pairs_from_metadata(data_dir, scene_num)
-        imu = load_trajectories(data_dir, scene_num, scene_pairs, pad_length)
+        imu, imu_lengths = load_trajectories(data_dir, scene_num, scene_pairs, pad_length)
         all_imu = np.vstack([all_imu, imu])
+        all_imu_lengths = np.concat([all_imu_lengths, imu_lengths])
         all_image_pairs.extend(scene_pairs)
 
     with open(pairs_cache_file, 'w') as f:
@@ -30,6 +33,8 @@ def consolidate_metadata(pairs_cache_file,
             f.write(" ".join((str(x) for x in pair)) + "\n")
     with open(imu_file, 'wb') as f:
         np.save(f, all_imu)
+    with open(imu_lengths_file, 'wb') as f:
+        np.save(f, all_imu_lengths)
 
 
 def load_pairs_cache_file(pairs_cache_file, data_dir='./data/croco_data'):
@@ -97,9 +102,11 @@ def load_trajectories(data_dir, scene_num, image_pairs, pad_length=50):
     # concatenate all trajectories
     # shape (num trajectories, trajectory length, imu dim (7))
     traj_imu = [imu[p[1]:p[2],:] for p in image_pairs]
+    traj_lengths = [p[2]-p[1]+1 for p in image_pairs]
     traj_imu = [np.pad(t, ((0, pad_length-t.shape[0]), (0, 0)), 'constant') for t in traj_imu]
     traj_imu = np.array(traj_imu)
-    return traj_imu
+    traj_lengths = np.array(traj_lengths)
+    return traj_imu, traj_lengths
 
 
 
@@ -109,15 +116,21 @@ class ImageIMUDataset(Dataset):
                  root_dir='.',
                  pairs_cache_file='pairs_cache.txt',
                  imu_file='imu.npy',
+                 imu_lengths_file='imu_lengths.npy',
                  data_dir='./data/croco_data/'):
         super().__init__()
         self.data_dir = os.path.join(root_dir, data_dir)
         self.pairs_cache_file = os.path.join(root_dir, pairs_cache_file)
         self.imu_file = os.path.join(root_dir, imu_file)
+        self.imu_lengths_file = os.path.join(root_dir, imu_lengths_file)
         self.image_pairs = load_pairs_cache_file(self.pairs_cache_file, self.data_dir)
         with open(self.imu_file, 'rb') as f:
             self.imu_data = np.load(f)
+        with open(self.imu_lengths_file, 'rb') as f:
+            self.imu_lengths = np.load(f)
         assert self.imu_data.shape[0] == len(self.image_pairs)
+        assert self.imu_data.shape[0] == self.imu_lengths.shape[0]
+        assert len(self.imu_lengths.shape) == 1
 
     def __len__(self):
         return len(self.image_pairs)
@@ -127,20 +140,24 @@ class ImageIMUDataset(Dataset):
         im1 = Image.open(im1path)
         im2 = Image.open(im2path)
         imu = self.imu_data[index]
-        return im1, im2, imu
+        imu_lengths = self.imu_lengths[index:index+1]
+        return im1, im2, imu, imu_lengths
 
 
 if __name__ == "__main__":
     pairs_cache_fname = 'pairs_cache.txt'
     imu_fname = 'imu.npy'
+    imu_lengths_fname = 'imu_lengths.npy'
     data_dir = './data/croco_data'
     consolidate_metadata(pairs_cache_file=pairs_cache_fname,
                          imu_file=imu_fname,
+                         imu_lengths_file=imu_lengths_fname,
                          data_dir=data_dir)
 
     dataset = ImageIMUDataset(
             root_dir='.',
             pairs_cache_file=pairs_cache_fname,
             imu_file=imu_fname,
+            imu_lengths_file=imu_lengths_fname,
             data_dir=data_dir)
 
