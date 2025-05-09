@@ -105,8 +105,9 @@ class AligatorNet(nn.Module):
                 dropout=0.1)
 
         # decoder 
-        self._set_decoder(enc_embed_dim, dec_embed_dim, dec_num_heads, dec_depth, mlp_ratio, norm_layer, norm_im2_in_dec)
+        # self._set_decoder(enc_embed_dim, dec_embed_dim, dec_num_heads, dec_depth, mlp_ratio, norm_layer, norm_im2_in_dec)
 
+        self.decoder_embed = nn.Linear(enc_embed_dim, dec_embed_dim, bias=True)
         self.imu_decoder_embed = nn.Linear(imu_enc_embed_dim, dec_embed_dim, bias=True)
         self.decoder_blocks = nn.ModuleList([
             IMUDecoderBlock(
@@ -116,6 +117,8 @@ class AligatorNet(nn.Module):
                 qkv_bias=True)
             for i in range(dec_depth)])
         self.decoder_norm = norm_layer(dec_embed_dim)
+        self.dec_norm = norm_layer(dec_embed_dim)
+        self.dec_norm2 = norm_layer(dec_embed_dim)
         
         # prediction head 
         self._set_prediction_head(dec_embed_dim, patch_size, imu_features)
@@ -135,18 +138,18 @@ class AligatorNet(nn.Module):
     def _set_mask_token(self, dec_embed_dim):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, dec_embed_dim))
         
-    def _set_decoder(self, enc_embed_dim, dec_embed_dim, dec_num_heads, dec_depth, mlp_ratio, norm_layer, norm_im2_in_dec):
-        self.dec_depth = dec_depth
-        self.dec_embed_dim = dec_embed_dim
-        # transfer from encoder to decoder 
-        self.decoder_embed = nn.Linear(enc_embed_dim, dec_embed_dim, bias=True)
-        # transformer for the decoder 
-        self.dec_blocks = nn.ModuleList([
-            DecoderBlock(dec_embed_dim, dec_num_heads, mlp_ratio=mlp_ratio, qkv_bias=True, norm_layer=norm_layer, norm_mem=norm_im2_in_dec, rope=self.rope)
-            for i in range(dec_depth)])
-        # final norm layer 
-        self.dec_norm = norm_layer(dec_embed_dim)
-        self.dec_norm2 = norm_layer(dec_embed_dim)
+    # def _set_decoder(self, enc_embed_dim, dec_embed_dim, dec_num_heads, dec_depth, mlp_ratio, norm_layer, norm_im2_in_dec):
+    #     self.dec_depth = dec_depth
+    #     self.dec_embed_dim = dec_embed_dim
+    #     # transfer from encoder to decoder 
+    #     self.decoder_embed = nn.Linear(enc_embed_dim, dec_embed_dim, bias=True)
+    #     # transformer for the decoder 
+    #     self.dec_blocks = nn.ModuleList([
+    #         DecoderBlock(dec_embed_dim, dec_num_heads, mlp_ratio=mlp_ratio, qkv_bias=True, norm_layer=norm_layer, norm_mem=norm_im2_in_dec, rope=self.rope)
+    #         for i in range(dec_depth)])
+    #     # final norm layer 
+    #     self.dec_norm = norm_layer(dec_embed_dim)
+    #     self.dec_norm2 = norm_layer(dec_embed_dim)
         
     def _set_prediction_head(self, dec_embed_dim, patch_size, imu_features):
          self.prediction_head = nn.Linear(dec_embed_dim, patch_size**2 * 3, bias=True)
@@ -247,20 +250,20 @@ class AligatorNet(nn.Module):
         # set masked positions in imu sequence to mask token
         imu_feat[imu_mask] = self.mask_token
 
-        # apply Transformer blocks
-        out = f1_
-        out2 = f2 
+        # # apply Transformer blocks
+        # out = f1_
+        # out2 = f2 
 
-        if return_all_blocks:
-            _out, out = out, []
-            for blk in self.dec_blocks:
-                _out, out2 = blk(_out, out2, pos1, pos2)
-                out.append(_out)
-            out[-1] = self.dec_norm(out[-1])
-        else:
-            for blk in self.dec_blocks:
-                out, out2 = blk(out, out2, pos1, pos2)
-            out = self.dec_norm(out)
+        # if return_all_blocks:
+        #     _out, out = out, []
+        #     for blk in self.dec_blocks:
+        #         _out, out2 = blk(_out, out2, pos1, pos2)
+        #         out.append(_out)
+        #     out[-1] = self.dec_norm(out[-1])
+        # else:
+        #     for blk in self.dec_blocks:
+        #         out, out2 = blk(out, out2, pos1, pos2)
+        #     out = self.dec_norm(out)
 
         out_masked_img = f1_
         out_unmasked_img = f2
@@ -270,7 +273,7 @@ class AligatorNet(nn.Module):
         out_masked_img = self.dec_norm(out_masked_img)
         out_imu = self.dec_norm2(out_imu)
 
-        return out, out_masked_img, out_imu
+        return out_masked_img, out_imu
 
     def patchify(self, imgs):
         """
@@ -318,13 +321,12 @@ class AligatorNet(nn.Module):
         imu, imu_mask, imu_attn_mask = self._encode_imu_sequence(imu, imu_length)
 
         # decoder 
-        decfeat, dec_img_feat, dec_imu_feat = self._decoder(feat1, pos1, mask1, feat2, pos2, imu, imu_mask, imu_attn_mask)
+        dec_img_feat, dec_imu_feat = self._decoder(feat1, pos1, mask1, feat2, pos2, imu, imu_mask, imu_attn_mask)
         # prediction head 
-        out = self.prediction_head(decfeat)
         out_img = self.prediction_head(dec_img_feat)
         out_imu = self.imu_prediction_head(dec_imu_feat)
         # get target
         target = self.patchify(img1)
-        return out, out_img, out_imu, mask1, target
+        return out_img, out_imu, mask1, target
         # return out_img, mask1, target
 
