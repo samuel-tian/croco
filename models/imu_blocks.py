@@ -44,7 +44,7 @@ class RotarySelfAttention(nn.Module):
         
         if mask is not None:
             extended_mask = mask[:, None, None, :]
-            attn_weights = attn_weights.masked_fill(extended_mask == 0, float('-inf'))
+            attn_weights = attn_weights.masked_fill(extended_mask == 1, float('-inf'))
 
         attn_weights = F.softmax(attn_weights, dim=-1)
         attn_weights = self.attn_drop(attn_weights)
@@ -80,7 +80,7 @@ class TransformerEncoderWithRoPE(nn.Module):
             for _ in range(num_layers)
             ])
 
-    def forward(self, x, masks):
+    def forward(self, x, masks=None):
         x = self.input_proj(x)
         for encoder_layer in self.encoder_layers:
             x = encoder_layer(x, masks)
@@ -122,7 +122,8 @@ class MultimodalCrossAttention(nn.Module):
         self.is_imu1 = is_imu1
         self.is_imu2 = is_imu2
 
-    def forward(self, x, x_pos, context, context_pos):
+    def forward(self, x, x_pos, context, context_pos, x_mask=None, context_mask=None):
+        assert not torch.isnan(x).any()
         # x is imu data, context is unmasked image
         B, S_x, _ = x.shape
         _, S_context, _ = context.shape
@@ -144,8 +145,20 @@ class MultimodalCrossAttention(nn.Module):
         else:
             k = self.img_rope(k, context_pos)
 
+        assert not torch.isnan(q).any()
+        assert not torch.isnan(k).any()
+        assert not torch.isnan(v).any()
+
         attn_weights = torch.matmul(q, k.transpose(-2, -1)) / self.head_dim**0.5
+        if x_mask is not None:
+            extended_mask = x_mask[:, None, :, None]
+            attn_weights = attn_weights.masked_fill(extended_mask == 1, 1e-9)
+        if context_mask is not None:
+            extended_mask = context_mask[:, None, None, :]
+            attn_weights = attn_weights.masked_fill(extended_mask == 1, 1e-9)
+
         attn_weights = F.softmax(attn_weights, dim=-1)
+        assert not torch.isnan(attn_weights).any()
         attn_weights = self.attn_drop(attn_weights)
         attn_output = torch.matmul(attn_weights, v)
 
@@ -220,7 +233,7 @@ class IMUDecoderBlock(nn.Module):
                 proj_drop=drop
                 )
 
-    def forward(self, masked_img, masked_img_pos, imu, unmasked_img, unmasked_img_pos):
+    def forward(self, masked_img, masked_img_pos, imu, unmasked_img, unmasked_img_pos, imu_mask=None):
         # TODO: separate norm objects for each call
         unmasked_img_ = self.norm_y(unmasked_img)
         masked_img = masked_img + self.self_attn1(self.norm1(masked_img), masked_img_pos)
@@ -236,7 +249,8 @@ class IMUDecoderBlock(nn.Module):
         x2 = self.cross_attn2(masked_img_norm,
                               masked_img_pos,
                               imu_norm,
-                              None)
+                              None,
+                              context_mask=imu_mask)
         x_fused = self.fuse1(torch.cat([x1, x2], dim=-1))
         x = masked_img + x_fused
         x = x + self.mlp1(self.norm5(x))
@@ -244,11 +258,13 @@ class IMUDecoderBlock(nn.Module):
         y1 = self.cross_attn3(imu_norm,
                               None,
                               unmasked_img_,
-                              unmasked_img_pos)
+                              unmasked_img_pos,
+                              x_mask=imu_mask)
         y2 = self.cross_attn4(imu_norm,
                               None,
                               masked_img_norm,
-                              masked_img_pos)
+                              masked_img_pos,
+                              x_mask=imu_mask)
         y_fused = self.fuse2(torch.cat([y1, y2], dim=-1))
         y = imu + y_fused
         y = y + self.mlp2(self.norm6(y))

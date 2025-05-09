@@ -22,7 +22,7 @@ def main():
     image2 = trfs(Image.open('assets/Chateau2.png').convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
 
     image_imu_dataset = ImageIMUDataset(root_dir='aria/')
-    img1, img2, imu, imu_length = image_imu_dataset[2]
+    img1, img2, imu, imu_length = image_imu_dataset[0]
 
     transforms = v2.Compose([
         v2.ToImage(),
@@ -42,28 +42,40 @@ def main():
     model = AligatorNet( **ckpt.get('croco_kwargs',{})).to(device)
     model.eval()
     msg = model.load_state_dict(ckpt['model'], strict=False)
-    
-    # img1 = image1
-    # img2 = image2
 
+    uninitialized_keys = []
+    new_state_dict = model.state_dict()
+    for key in model.state_dict():
+        if key not in ckpt['model']:
+            uninitialized_keys.append(key)
+        elif ckpt['model'][key].shape != new_state_dict[key].shape:
+            uninitialized_keys.append(key)
+    for key in uninitialized_keys:
+        print(key)
+    
     # forward 
     with torch.inference_mode():
-        out, mask, target = model(img1, img2, imu, imu_length)
+        out, out_img, out_imu, mask, target = model(img1, img2, imu, imu_length)
 
     # the output is normalized, thus use the mean/std of the actual image to go back to RGB space 
     patchified = model.patchify(img1)
     mean = patchified.mean(dim=-1, keepdim=True)
     var = patchified.var(dim=-1, keepdim=True)
-    decoded_image = model.unpatchify(out * (var + 1.e-6)**.5 + mean)
-    # undo imagenet normalization, prepare masked image
-    decoded_image = decoded_image * imagenet_std_tensor + imagenet_mean_tensor
+
     input_image = img1 * imagenet_std_tensor + imagenet_mean_tensor
     ref_image = img2 * imagenet_std_tensor + imagenet_mean_tensor
     image_masks = model.unpatchify(model.patchify(torch.ones_like(ref_image)) * mask[:,:,None])
     masked_input_image = ((1 - image_masks) * input_image)
 
+    # undo imagenet normalization, prepare masked image
+    decoded_image = model.unpatchify(out * (var + 1.e-6)**.5 + mean)
+    decoded_image = decoded_image * imagenet_std_tensor + imagenet_mean_tensor
+
+    decoded_image_new = model.unpatchify(out_img * (var + 1.e-6)**.5 + mean)
+    decoded_image_new = decoded_image_new * imagenet_std_tensor + imagenet_mean_tensor
+
     # make visualization
-    visualization = torch.cat((ref_image, masked_input_image, decoded_image, input_image), dim=3) # 4*(B, 3, H, W) -> B, 3, H, W*4
+    visualization = torch.cat((ref_image, masked_input_image, decoded_image, decoded_image_new, input_image), dim=3) # 4*(B, 3, H, W) -> B, 3, H, W*4
     B, C, H, W = visualization.shape
     visualization = visualization.permute(1, 0, 2, 3).reshape(C, B*H, W)
     visualization = torchvision.transforms.functional.to_pil_image(torch.clamp(visualization, 0, 1))
