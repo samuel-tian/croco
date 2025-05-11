@@ -1,6 +1,6 @@
 import torch
 from models.croco import CroCoNet
-from models.aligator import AligatorNet
+from models.alligator import AlligatorNet
 from PIL import Image
 import torchvision.transforms
 from torchvision.transforms import ToTensor, Normalize, Compose
@@ -34,12 +34,14 @@ def main():
 
     imu = torch.from_numpy(imu).to(device, non_blocking=True).type(torch.float32).unsqueeze(0)
     imu_length = torch.from_numpy(imu_length).to(device, non_blocking=True).type(torch.int32).unsqueeze(0)
-    img1 = transforms(img1).to(device, non_blocking=True).unsqueeze(0)
-    img2 = transforms(img2).to(device, non_blocking=True).unsqueeze(0)
+    # img1 = transforms(img1).to(device, non_blocking=True).unsqueeze(0)
+    # img2 = transforms(img2).to(device, non_blocking=True).unsqueeze(0)
+    img1 = img1.to(device, non_blocking=True).unsqueeze(0)
+    img2 = img2.to(device, non_blocking=True).unsqueeze(0)
     
     # load model 
     ckpt = torch.load('pretrained_models/CroCo_V2_ViTBase_SmallDecoder.pth', 'cpu')
-    model = AligatorNet( **ckpt.get('croco_kwargs',{})).to(device)
+    model = AlligatorNet( **ckpt.get('croco_kwargs',{})).to(device)
     model.eval()
     msg = model.load_state_dict(ckpt['model'], strict=False)
 

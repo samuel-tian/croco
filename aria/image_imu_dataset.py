@@ -6,7 +6,10 @@ import numpy as np
 
 from scipy.interpolate import UnivariateSpline
 from scipy.spatial.transform import Rotation
+from tqdm import tqdm
 
+import torch as torch
+from torchvision.transforms import v2
 
 def consolidate_metadata(pairs_cache_file,
                          imu_file,
@@ -18,7 +21,7 @@ def consolidate_metadata(pairs_cache_file,
     all_image_pairs = []
     all_imu = np.zeros((0,50,7))
     all_imu_lengths = np.zeros((0))
-    for subdir in os.listdir(data_dir):
+    for subdir in tqdm(os.listdir(data_dir)):
         if not os.path.isdir(os.path.join(data_dir, subdir)):
             continue
         scene_num = int(subdir[1:])
@@ -132,6 +135,16 @@ class ImageIMUDataset(Dataset):
         assert self.imu_data.shape[0] == self.imu_lengths.shape[0]
         assert len(self.imu_lengths.shape) == 1
 
+        imagenet_mean = [0.485, 0.456, 0.406]
+        imagenet_std = [0.229, 0.224, 0.225]
+        self.transforms = v2.Compose([
+            v2.ToImage(),
+            v2.ToDtype(torch.uint8, scale=True),
+            v2.CenterCrop(size=(224, 224)),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=imagenet_mean, std=imagenet_std)
+            ])
+
     def __len__(self):
         return len(self.image_pairs)
 
@@ -141,7 +154,7 @@ class ImageIMUDataset(Dataset):
         im2 = Image.open(im2path)
         imu = self.imu_data[index]
         imu_lengths = self.imu_lengths[index:index+1]
-        return im1, im2, imu, imu_lengths
+        return self.transforms(im1), self.transforms(im2), imu, imu_lengths
 
 
 if __name__ == "__main__":

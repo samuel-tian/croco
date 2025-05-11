@@ -21,7 +21,7 @@ from models.imu_blocks import TransformerEncoderWithRoPE, MultimodalCrossAttenti
 from models.imu_blocks import IMUDecoderBlock
 
 
-class AligatorNet(nn.Module):
+class AlligatorNet(nn.Module):
 
     def __init__(self,
                  img_size=224,           # input image size
@@ -47,7 +47,7 @@ class AligatorNet(nn.Module):
                  # decoder inputs are both imu and image data, so decoder params will be the same as above
                 ):
                 
-        super(AligatorNet, self).__init__()
+        super(AlligatorNet, self).__init__()
                 
         # patch embeddings  (with initialization done as in MAE)
         self._set_patch_embed(img_size, patch_size, enc_embed_dim)
