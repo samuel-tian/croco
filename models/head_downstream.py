@@ -14,6 +14,7 @@ The forward takes the features as well as a dictionary img_info containing the k
 import torch
 import torch.nn as nn
 from .dpt_block import DPTOutputAdapter
+from torchvision.models import resnet18
 
 
 class PixelwiseTaskWithDPT(nn.Module):

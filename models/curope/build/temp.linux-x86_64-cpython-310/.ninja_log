@@ -1,0 +1,5 @@
+# ninja log v5
+3	140688	1746850568000000000	/home/gridsan/ccao2/croco/models/curope/build/temp.linux-x86_64-cpython-310/curope.o	2abfa2b8a19a723b
+81	115261	1746941361000000000	/home/gridsan/ccao2/croco/models/curope/build/temp.linux-x86_64-cpython-310/kernels.o	65561aec3c140ff0
+89	85017	1747026310000000000	/home/gridsan/ccao2/croco/models/curope/build/temp.linux-x86_64-cpython-310/curope.o	dba5c06567cda445
+89	286898	1747026512000000000	/home/gridsan/ccao2/croco/models/curope/build/temp.linux-x86_64-cpython-310/kernels.o	3764a72b203f02da
