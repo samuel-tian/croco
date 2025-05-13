@@ -39,7 +39,7 @@ def main():
     img2 = img2.to(device, non_blocking=True)
     
     # load model 
-    ckpt = torch.load('pretrained_models/CroCo_V2_ViTBase_SmallDecoder.pth', 'cpu')
+    ckpt = torch.load('pretrained_models/checkpoint-last.pth', 'cpu', weights_only=False)
     model = AlligatorNet( **ckpt.get('croco_kwargs',{})).to(device)
     model.eval()
     msg = model.load_state_dict(ckpt['model'], strict=False)
@@ -57,7 +57,7 @@ def main():
     
     # forward 
     with torch.inference_mode():
-        out_img, out_imu, mask, target = model(img1, img2, imu, imu_length)
+        out_img, out_imu, mask, target = model(img1, img2, imu[...,:-1], imu_length)
 
     # the output is normalized, thus use the mean/std of the actual image to go back to RGB space 
     patchified = model.patchify(img1)
