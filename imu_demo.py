@@ -22,7 +22,8 @@ def main():
     image2 = trfs(Image.open('assets/Chateau2.png').convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
 
     image_imu_dataset = ImageIMUDataset(root_dir='aria/')
-    img1, img2, imu, imu_length = image_imu_dataset[0]
+    data_loader = torch.utils.data.DataLoader(image_imu_dataset, batch_size=2)
+    img1, img2, imu, imu_length = next(iter(data_loader))
 
     transforms = v2.Compose([
         v2.ToImage(),
@@ -32,12 +33,10 @@ def main():
         v2.Normalize(mean=imagenet_mean, std=imagenet_std)
         ])
 
-    imu = torch.from_numpy(imu).to(device, non_blocking=True).type(torch.float32).unsqueeze(0)
-    imu_length = torch.from_numpy(imu_length).to(device, non_blocking=True).type(torch.int32).unsqueeze(0)
-    # img1 = transforms(img1).to(device, non_blocking=True).unsqueeze(0)
-    # img2 = transforms(img2).to(device, non_blocking=True).unsqueeze(0)
-    img1 = img1.to(device, non_blocking=True).unsqueeze(0)
-    img2 = img2.to(device, non_blocking=True).unsqueeze(0)
+    imu = imu.to(device, non_blocking=True).type(torch.float32)
+    imu_length = imu_length.to(device, non_blocking=True).type(torch.int32)
+    img1 = img1.to(device, non_blocking=True)
+    img2 = img2.to(device, non_blocking=True)
     
     # load model 
     ckpt = torch.load('pretrained_models/CroCo_V2_ViTBase_SmallDecoder.pth', 'cpu')

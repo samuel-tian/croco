@@ -30,9 +30,9 @@ import torchvision.datasets as datasets
 import utils.misc as misc
 from utils.misc import NativeScalerWithGradNormCount as NativeScaler
 # from models.croco import CroCoNet
-from models.aligator import AligatorNet
+from models.alligator import AlligatorNet
 # from models.criterion import MaskedMSE
-from models.criterion import MaskedAligatorMSE
+from models.criterion import MaskedAlligatorMSE
 from aria.image_imu_dataset import ImageIMUDataset
 
 
@@ -105,13 +105,13 @@ def main(args):
 
     if world_size>1:
         sampler_train = torch.utils.data.DistributedSampler(
-            dataset, num_replicas=world_size, rank=global_rank, shuffle=True
+            image_imu_dataset, num_replicas=world_size, rank=global_rank, shuffle=True
         )
         print("Sampler_train = %s" % str(sampler_train))
     else:
-        sampler_train = torch.utils.data.RandomSampler(dataset)
+        sampler_train = torch.utils.data.RandomSampler(image_imu_dataset)
     data_loader_train = torch.utils.data.DataLoader(
-        dataset, sampler=sampler_train,
+        image_imu_dataset, sampler=sampler_train,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=True,
@@ -119,10 +119,11 @@ def main(args):
     )
    
     ## model 
-    print('Loading model: {:s}'.format(args.model))
+    args.model = "AlligatorNet()"
+    # print('Loading model: {:s}'.format(args.model))
     model = eval(args.model)
     print('Loading criterion: MaskedAligatorMSE(norm_pix_loss={:s})'.format(str(bool(args.norm_pix_loss))))
-    criterion = MaskedAligatorMSE(norm_pix_loss=bool(args.norm_pix_loss))
+    criterion = MaskedAlligatorMSE(norm_pix_loss=bool(args.norm_pix_loss))
    
     model.to(device)
     model_without_ddp = model
@@ -209,7 +210,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
     if log_writer is not None:
         print('log_dir: {}'.format(log_writer.log_dir))
 
-    for data_iter_step, (image1, image2, imu_seq) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
+    for data_iter_step, (image1, image2, imu_seq, seq_len) in enumerate(metric_logger.log_every(data_loader, args.print_freq, header)):
 
         # we use a per iteration  lr scheduler
         if data_iter_step % accum_iter == 0:
@@ -218,10 +219,12 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         image1 = image1.to(device, non_blocking=True) 
         image2 = image2.to(device, non_blocking=True)
         imu_seq = imu_seq.to(device)
+        seq_len = seq_len.to(device)
+        print(seq_len)
 
-        with torch.cuda.amp.autocast(enabled=bool(args.amp)):
-            out, mask, target = model(image1, image2, imu_seq)
-            loss = criterion(out, mask, target, imu_seq)
+        # with torch.cuda.amp.autocast(enabled=bool(args.amp)):
+        out, mask, target = model(image1, image2, imu_seq, seq_len)
+        loss = criterion(out, mask, target, imu_seq)
 
         loss_value = loss.item()
 

@@ -214,7 +214,8 @@ class AlligatorNet(nn.Module):
     def _encode_imu_sequence(self, x, x_length, do_mask=True):
         B, S, D = x.size()
         attn_mask = torch.zeros((B, S), device=x.device, dtype=bool)
-        attn_mask[:,x_length:] = 1
+        for b in range(B):
+            attn_mask[b,x_length[b]:] = 1
         if do_mask:
             masks = self.imu_mask_generator(x)
         else:
