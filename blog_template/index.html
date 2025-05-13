@@ -48,6 +48,12 @@
 				#"Avenir";
 			}
 
+			/* .main-content-block img {
+				flex-shrink: 0;
+				min-width: 70%;
+				min-height: 70%
+			} */
+
 			.margin-left-block {
 				font-size: 14px;
 				width: 15%;
@@ -121,6 +127,12 @@
 
 			h1 {
 				font-size: 18px;
+				margin-top: 4px;
+				margin-bottom: 10px;
+			}
+
+			h2 {
+				font-size: 16px;
 				margin-top: 4px;
 				margin-bottom: 10px;
 			}
@@ -236,6 +248,15 @@
 				width: 50px;
 				/* Optional: Adds space between the div and the paragraph */
 			}
+
+			.row {
+				display: flex;
+			}
+
+			.column {
+				flex: 33.33%;
+				padding: 5px;
+			}
 		</style>
 
 		<title>Alligator</title>
@@ -277,53 +298,274 @@
 				<!-- table of contents here -->
 				<div style="position:fixed; max-width:inherit; top:max(20%,120px)">
 					<b style="font-size:16px">Outline</b><br><br>
-					<a href="#intro">Introduction</a><br><br>
+					<a href="#intro-tc">Introduction</a><br><br>
+					<a href="#background-tc">Background</a><br><br>
+					<a href="#methodology-tc">Methodology and Experiments</a><br><br>
+					<a href="#analysis-tc">Results and Analysis</a><br><br>
+					<a href="#conclusion-tc">Conclusion</a><br><br>
 				</div>
 			</div>
 		</div>
 
-		<div class="content-margin-container" id="intro">
+		<div class="content-margin-container" id="intro-tc">
 			<div class="margin-left-block">
 			</div>
 			<div class="main-content-block">
 				<h1>Introduction</h1>
+				<p>
+				Many SLAM systems rely on visual-inertial odometry (VIO), which fuses camera images with IMU data. However, when a
+				visual pipeline fails due to occlusions, poor lighting, or motion blur, the noise inherent in low-cost IMU sensors leads
+				to poor localization. This motivates improving inertial-only methods for more robust SLAM systems.
+				</p>
 				
-				Motivate your project. What question are you asking. Why is it unanswered so far? What gap in the
-				literature or practice are you filling?
-				Why is it important?
+				<p>
+				Meanwhile, state-of-the-art end-to-end learning approaches such as DUST3R [10] / MAST3R [7], and VGGT [9], have shown
+				impressive performance on 3D vision tasks and strong potential for improving VIO SLAM. These results suggest that they
+				learn powerful geometric priors that could be used to improve inertial-only navigation. However, in spite of their
+				increased robustness, they can still struggle in poor visual conditions and lack consistent metric scale, which could
+				potentially be mitigated using the additional information IMUs provide. As such, we propose incorporating IMU data into
+				these pipelines to enhance performance across both modalities. Two key questions are:
+				</p>	
+				
+				<ul>
+					<li>Can simultaneous image reconstruction and IMU sequence reconstruction help end-to-end vision models learn metric scale?</li>
+					<li>Can the geometric priors learned by end-to-end vision models improve the accuracy of inertial odometry measurements?</li>
+				</ul>	
+				
+				<p>
+				We introduce Alligator (Attentional Learning for Linked Image Generation And Trajectory Oriented Reasoning), a
+				self-supervised training objective designed for learning joint embeddings for image and temporal IMU data. By utilizing
+				masked sequence modeling, we show that simultaneously learning embeddings across multiple modalities has the potential
+				to yield generalizable representations of visual-inertial data that can be used in a variety of downstream 3D vision
+				tasks.
+				</p>
 			</div>
 			<div class="margin-right-block">
-				Margin note that clarifies some detail #main-content-block for intro section.
 			</div>
 		</div>
 
-		<div class="content-margin-container" id="background">
+		<div class="content-margin-container" id="background-tc">
 			<div class="margin-left-block">
 			</div>
 			<div class="main-content-block">
 				<h1>Background</h1>
+				<p>
+				Pretraining via masked image modeling (e.g., CroCoNet [11]) has been key to enabling strong downstream 3D performance.
+				Related work in vision-language learning [4] [12] shows the potential of masked modeling for learning cross-modal
+				representations.
+				</p>
 				
+				<p>
+				End-to-end 3D reconstruction models like DUST3R [10] and MAST3R [5] use vision transformers to estimate dense, aligned
+				point clouds from image pairs without requiring camera calibration. However, they operate on only two views and require
+				post-processing to incorporate more. VGGT [9] improves on this with a feed-forward network that jointly predicts key 3D
+				attributes across multiple views using DINO-pretrained features.
+				</p>
+				
+				<p>
+				In parallel, inertial-only methods like TLIO [6] predict motion from IMU sequences via learned priors, but are sensitive
+				to reference frames and fail to generalize across modalities. Buchanan et al. [1] learn IMU bias evolution but rely on
+				sensor-specific tuning and geometric supervision.
+				</p>
+				
+				<p>
+				To our knowledge, no prior work has combined IMU data with end-to-end 3D vision models.
+				While image-based models can infer 3D scene geometry, IMU sequences also contain implicit 3D information. VGGT
+				demonstrates that training on related tasks can improve performance; as such, we want to understand if combining visual
+				and IMU data can enable calibration-free VIO and lead to more robust SLAM systems.
+				</p>
 			</div>
 			<div class="margin-right-block">
 			</div>
 		</div>
 
-		<div class="content-margin-container" id="architecture-figure">
+		<!-- <div class="content-margin-container" id="architecture-figure">
 			<div class="margin-left-block">
 			</div>
 			<div class="main-content-block">
             	<img src="./images/architecture.png" width=512px/>
 			</div>
 			<div class="margin-right-block">
-				Model Architecture
+				Figure 1: AlligatorNet Model Architecture
 			</div>
-		</div>
+		</div> -->
 
-		<div class="content-margin-container" id="methodology">
+		<div class="content-margin-container" id="methodology-tc">
 			<div class="margin-left-block">
 			</div>
 			<div class="main-content-block">
 				<h1>Methodology and Experiments</h1>
+				<p>
+				We propose a self-supervised pre-training task that leverages two temporally adjacent images of the same scene, along
+				with the IMU data captured in between. The second image and the IMU sequence are randomly masked, and the model is
+				trained to reconstruct them by minimizing mean squared error. Training images and IMU data will be taken from the
+				Project Aria Synthetic Environments [3] dataset.
+				</p>
+			</div>
+			<div class="margin-right-block">
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="dataset-tc">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<h2>Dataset Generation</h2>
+            	<img src="./images/image_pair1.png" width=512px/>
+				<br>
+            	<img src="./images/image_pair2.png" width=512px/>
+			</div>
+			<div class="margin-right-block">
+			Figure 1: Selected image pairs from our dataset. The above images are sufficiently different so that our image encoder
+			can extract meaningful features, but both images also contain several of the same scene indicators so that the reference
+			image actually informs the reconstruction of our target image.
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="dataset">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<p>
+				The Aria Synthetic Environments dataset contains hundreds of thousands of synthetic 3D indoor scenes. A camera
+				trajectory is simulated, and the captured visual data is available alongside a global pointcloud. Following the
+				methodology used to generate data in CroCo, we wish to select image pairs with moderate “co-visibility”, which is a
+				heuristic for image similarity that is roughly the percentage of the pointcloud visible in both images. No overlap
+				between the two images would result in poor pre-training performance because the reference input does not provide
+				sufficient context, while high overlap would hurt the quality of our embeddings because little additional information
+				needs to be learned by the encoder.
+				</p>
+				<p>
+				To generate these image pairs, we randomly sample a reference image from the dataset. We then randomly sample a second
+				image taken within 50 timesteps of the first image. The overlap between the two images can be computed by counting the
+				number of visible 3D points the images have in common. If the number of overlapping points falls within a specified
+				range, the image pair is added to our pre-training dataset, otherwise we continue sampling. We also place a lower bound
+				on the time delta between the two images to minimize the chance that we add two near-identical images to our dataset.
+				For each image pair, we also include the camera's trajectory between the timestamps at which the images were captured.
+				IMU data can be computed by fitting the camera’s positional and angular trajectories to a k-degree polynomial and
+				differentiating. Figure 1 illustrates some of our generated image pairs.
+				</p>
+				<p>
+				For our pretraining dataset, we ended up processing 28846 distinct indoor scenes from the Aria Synthetic Environments
+				dataset, attempting to extract 50 image pairs from each scene for a total of 1342776 visual-inertial triplets. For some
+				scenes, it was more difficult to find image pairs that satisfied the time delta and co-visibility requirements, so the
+				average number of triplets sampled per scene ends up being a little less than 50.
+				</p>
+			</div>
+			<div class="margin-right-block">
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="pretraining-tc">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<h2>Pretraining</h2>
+            	<img src="./images/architecture.png" width=768px/>
+			</div>
+			<div class="margin-right-block">
+				Figure 2: AlligatorNet Model Architecture
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="analysis">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<p>
+				Our AlligatorNet model augments the CroCoNet architecture to incorporate IMU sequence embeddings. Figure 2, adapted from
+				CroCoNet, illustrates these changes. The image encoders are identical to the image encoders used in CroCoNet; both the
+				reference image and the masked image are encoded using a shared-weight vision transformer. The IMU sequence will be
+				encoded using a sequence of self-attention transformer blocks. During the encoding phase, image and IMU masks will be
+				randomly generated. We mask 90% of the target image (following CroCoNet) and 40% of the IMU sequence.
+				</p>
+
+				<p>
+				The decoder is multimodal and should fuse the generated embeddings for both input images and the IMU sequence. Target
+				masked image tokens and target masked IMU sequence tokens are reconstructed in parallel, and the reconstruction of
+				Ideally, the tokens in the target image sequence should attend to both the reference image tokens and the masked IMU
+				tokens. Thus, we implement a decoder block that utilizes a 3-way cross attention mechanism, in which we have the target
+				sequence attend to the two context sequences independently, after which we fuse the output attention scores using a
+				simple linear layer. Similarly, we have the target IMU sequence attend to both the reference image and the masked image.
+				The decoder block replaces the cross-attention layer in CroCoNet’s CrossBlock with the aforementioned 3-way cross
+				attention layer, and thus consists of a self-attention layer, a 3-way cross attention layer, and an MLP in sequence.
+				</p>
+			</div>
+			<div class="margin-right-block">
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="pretraining">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<div class="row">
+					<div class="column">
+						<img src="./images/attention.png" width=400px/>
+					</div>
+					<div class="column">
+						<img src="./images/decoder.png" width=400px/>
+					</div>
+				</div>
+			</div>
+			<div class="margin-right-block">
+				Figure 3: 3-way cross attention layer (left) and decoder block architecture (right)
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="pretraining">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<p>
+				Finally, we append two prediction heads to the output of the decoder. One prediction head takes the target image tokens
+				as input and outputs a reconstruction of the masked image, and the second prediction head takes the target IMU tokens as
+				input and outputs a reconstruction of the masked IMU sequence. For both the image and IMU sequence, we compute the MSE
+				between the ground truth masked tokens and the reconstructed tokens, normalizing within each modality. Our final loss
+				criterion will be a weighted sum of these normalized losses.
+				</p>
+			</div>
+			<div class="margin-right-block">
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="downstream-tc">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<h2>Downstream Learning: Depth Estimation</h2>
+				
+			</div>
+			<div class="margin-right-block">
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="analysis-tc">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<h1>Results and Analysis</h1>
+				<img src="./images/train_loss.png" width=512px/>
+			</div>
+			<div class="margin-right-block">
+				Figure 4: Pre-training loss over 13 epochs
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="analysis">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				We leverage MIT SuperCloud compute resources to pre-train AlligatorNet on our dataset adapted from Aria Synthetic
+				Environments. According to the CroCoNet authors, training the original CroCoNet model for 400 epochs takes approximately
+				64 GPU-days on NVIDIA V100. Because the AlligatorNet decoder architecture is multiple times larger than the CroCoNet
+				architecture due to the multimodal cross-attention mechanism, training our model until convergence is simply infeasible
+				given our available time and computational resources--we estimate that one training epoch for AlligatorNet takes 11
+				GPU-hours. However, because our encoder architecture is directly borrowed from the CroCoNet encoder, we can initialize
+				the encoder with the pretrained CroCoNet encoder weights, which would significantly improve low-resource training
+				because the encoder is already capable of extracting some features relevant for reconstruction. Ultimately, we were only
+				able to train our model for 13 epochs. The pre-training loss is visualized in Figure 4. While we observe significant
+				improvements in our pre-training loss criterion, we unfortunately do not reach convergence.
 			</div>
 			<div class="margin-right-block">
 			</div>
@@ -333,14 +575,26 @@
 			<div class="margin-left-block">
 			</div>
 			<div class="main-content-block">
-				<h1>Analysis</h1>
-				
+				<img src="./images/after_training.png" width=512px/>
+			</div>
+			<div class="margin-right-block">
+				Figure 5: Qualitative visualization of reconstruction examples. Column 1: unmasked reference image, Column 2: masked
+				target image, Column 3: reconstructed target image, Column 4: ground truth target image.
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="analysis">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				Preliminary results are encouraging, even with the model’s limited training. Figure 5 presents the model's
+				reconstructions of two image pairs from the pre-training dataset.
 			</div>
 			<div class="margin-right-block">
 			</div>
 		</div>
 
-		<div class="content-margin-container" id="conclusion">
+		<div class="content-margin-container" id="conclusion-tc">
 			<div class="margin-left-block">
 			</div>
 			<div class="main-content-block">
@@ -357,13 +611,40 @@
 			<div class="main-content-block">
 				<div class='citation' id="references" style="height:auto"><br>
 					<span style="font-size:16px">References:</span><br><br>
-					<a id="ref_1"></a>[1] <a href="https://en.wikipedia.org/wiki/Allegory_of_the_cave">Allegory of the
-						Cave</a>, Plato, c. 375 BC<br><br>
-					<a id="ref_2"></a>[2] <a href="">A Human-Level AGI</a>, OpenAI, 2025<br><br>
+					[1] Russell Buchanan, Varun Agrawal, Marco Camurri, Frank Dellaert, and Maurice Fallon. Deep imu bias inference for
+					robust visual-inertial odometry with factor graphs. IEEE Robotics and Automation Letters, 8(1), 2023.<br><br>
+					[2] Michael Burri, Janosch Nikolic, Pascal Gohl, Thomas Schneider, Joern Rehder, Sammy Omari, Markus W Achtelik, and
+					Roland Siegwart. The euroc micro aerial vehicle datasets. The International Journal of Robotics Research, 2016.<br><br>
+					[3] Jakob Engel, Kiran Somasundaram, Michael Goesele, Albert Sun, Alexander Gamino, Andrew Turner, Arjang Talattof,
+					Arnie Yuan, Bilal Souti, Brighid Meredith, Cheng Peng, Chris Sweeney, Cole Wilson, Dan Barnes, Daniel DeTone, David
+					Caruso, Derek Valleroy, Dinesh Ginjupalli, Duncan Frost, Edward Miller, Elias Mueggler, Evgeniy Oleinik, Fan Zhang,
+					Guruprasad Somasundaram, Gustavo Solaira, Harry Lanaras, Henry Howard-Jenkins, Huixuan Tang, Hyo Jin Kim, Jaime Rivera,
+					Ji Luo, Jing Dong, Julian Straub, Kevin Bailey, Kevin Eckenhoff, Lingni Ma, Luis Pesqueira, Mark Schwesinger, Maurizio
+					Monge, Nan Yang, Nick Charron, Nikhil Raina, Omkar Parkhi, Peter Borschowa, Pierre Moulon, Prince Gupta, Raul Mur-Artal,
+					Robbie Pennington, Sachin Kulkarni, Sagar Miglani, Santosh Gondi, Saransh Solanki, Sean Diener, Shangyi Cheng, Simon
+					Green, Steve Saarinen, Suvam Patra, Tassos Mourikis, Thomas Whelan, Tripti Singh, Vasileios Balntas, Vijay Baiyya,
+					Wilson Dreewes, Xiaqing Pan, Yang Lou, Yipu Zhao, Yusuf Mansour, Yuyang Zou, Zhaoyang Lv, Zijian Wang, Mingfei Yan, Carl
+					Ren, Renzo De Nardi, and Richard Newcombe. Project aria: A new tool for egocentric multi-modal ai research, 2023.<br><br>
+					[4] Gukyeong Kwon, Zhaowei Cai, Avinash Ravichandran, Erhan Bas, Rahul Bhotika, and Stefano Soatto. Masked vision and
+					language modeling for multi-modal representation learning, 2023.<br><br>
+					[5] Vincent Leroy, Yohann Cabon, and J´erˆome Revaud. Grounding image matching in 3d with mast3r, 2024.<br><br>
+					[6] Wenxin Liu, David Caruso, Eddy Ilg, Jing Dong, Anastasios I. Mourikis, Kostas Daniilidis, Vijay Kumar, and Jakob
+					Engel. Tlio: Tight learned inertial odometry, 2020.<br><br>
+					[7] Ben Mildenhall, Pratul P. Srinivasan, Matthew Tancik, Jonathan T. Barron, Ravi Ramamoorthi, and Ren Ng. Nerf:
+					Representing scenes as neural radiance fields for view synthesis, 2020.<br><br>
+					[8] J. Sturm, N. Engelhard, F. Endres, W. Burgard, and D. Cremers. A benchmark for the evaluation of rgb-d slam systems.
+					In Proc. of the International Conference on Intelligent Robot Systems (IROS), Oct. 2012.<br><br>
+					[9] Jianyuan Wang, Minghao Chen, Nikita Karaev, Andrea Vedaldi, Christian Rupprecht, and David Novotny. Vggt: Visual
+					geometry grounded transformer, 2025.<br><br>
+					[10] Shuzhe Wang, Vincent Leroy, Yohann Cabon, Boris Chidlovskii, and Jerome Revaud. Dust3r: Geometric 3d vision made
+					easy, 2024.<br><br>
+					[11] Philippe Weinzaepfel, Vincent Leroy, Thomas Lucas, Romain Br´egier, Yohann Cabon, Vaibhav Arora, Leonid Antsfeld,
+					Boris Chidlovskii, Gabriela Csurka, and J´erˆome Revaud. Croco: Self-supervised pre-training for 3d vision tasks by
+					cross-view completion, 2023.<br><br>
+					[12] Linli Yao, Weiying Wang, and Qin Jin. Image difference captioning with pre-training and contrastive learning, 2022.
 				</div>
 			</div>
 			<div class="margin-right-block">
-				<!-- margin notes for reference block here -->
 			</div>
 		</div>
 
