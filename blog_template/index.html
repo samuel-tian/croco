@@ -316,18 +316,22 @@
 			<div class="main-content-block">
 				<h1>Introduction</h1>
 				<p>
-				Many SLAM systems rely on visual-inertial odometry (VIO), which fuses camera images with IMU data. However, when a
-				visual pipeline fails due to occlusions, poor lighting, or motion blur, the noise inherent in low-cost IMU sensors leads
-				to poor localization. This motivates improving inertial-only methods for more robust SLAM systems.
+				Visual-inertial odometry (VIO) is a fundamental component of many Simultaenous Localization And Mapping (SLAM) systems, where it is used to estimate pose and trajectory
+				by fusing camera images with IMU data. The inclusion of IMU data enable metric scale recovery, while the vision system mitigates 
+				drift caused bias and noise in the IMU sensors. State-of-the-art (SOTA) methods such as VINS-MONO and Kimera-Multi have shown robust 
+				performance, both on datasets such as KITTI, EuRoC, and Kimera, and in the real-world. However, a VIO system's ability to localize is 
+				severely degraded by occlusions, poor lighting, or motion blur. When failures in the vision pipeline occur, the IMU can still provide 
+				valuable motion data; however, without camera images to correct the drift, naively integrating noisy IMU data will lead to errors that 
+				grow exponentially. Additionally, existing deep learning approaches to inertial odometry, such as TLIO, are primarily trained on pedestrian datasets
+				and generalize poorly. This motivates improving inertial-only methods for more robust SLAM systems.
 				</p>
 				
 				<p>
 				Meanwhile, state-of-the-art end-to-end learning approaches such as DUST3R [10] / MAST3R [7], and VGGT [9], have shown
-				impressive performance on 3D vision tasks and strong potential for improving VIO SLAM. These results suggest that they
-				learn powerful geometric priors that could be used to improve inertial-only navigation. However, in spite of their
-				increased robustness, they can still struggle in poor visual conditions and lack consistent metric scale, which could
-				potentially be mitigated using the additional information IMUs provide. As such, we propose incorporating IMU data into
-				these pipelines to enhance performance across both modalities. Two key questions are:
+				impressive performance for tasks such 3D scene reconstruction, point tracking, and pose estimation for SLAM. This suggests that their 
+				training pipelines allow them to learn powerful geometric priors that could be informative for inertial-only navigation. However, despite 
+				the robustness of MAST3R [7] and VGGT [9], they still struggle in poor visual conditions and lack consistent metric scale. As such, we
+				propose incorporating IMU data into a similar training pipelines to enhance performance across both modalities. Our two main questions are:
 				</p>	
 				
 				<ul>
@@ -339,7 +343,7 @@
 				We introduce Alligator (Attentional Learning for Linked Image Generation And Trajectory Oriented Reasoning), a
 				self-supervised training objective designed for learning joint embeddings for image and temporal IMU data. By utilizing
 				masked sequence modeling, we show that simultaneously learning embeddings across multiple modalities has the potential
-				to yield generalizable representations of visual-inertial data that can be used in a variety of downstream 3D vision
+				to yield generalizable representations of visual-inertial data that can be used in a variety of downstream 3D vision and SLAM
 				tasks.
 				</p>
 			</div>
