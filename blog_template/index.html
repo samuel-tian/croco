@@ -279,10 +279,12 @@
 					</tr>
 					<tr>
 						<td align=left>
-							<span style="font-size:17px"><a href="your_website">Samuel Tian</a></span>
+							<span>Cynthia Cao</span>
+							<!-- <span style="font-size:17px"><a href="your_website">Cynthia Cao</a></span> -->
 						</td>
 						<td align=left>
-							<span style="font-size:17px"><a href="your_partner's_website">Cynthia Cao</a></span>
+							<span>Samuel Tian</span>
+							<!-- <span style="font-size:17px"><a href="your_partner's_website">Samuel Tian</a></span> -->
 						</td>
 					<tr>
 						<td colspan=4 align=left><span style="font-size:18px">Final project for 6.7960, MIT</span></td>
@@ -302,7 +304,8 @@
 					<a href="#background-tc">Background</a><br><br>
 					<a href="#methodology-tc">Methodology and Experiments</a><br><br>
 					<a href="#analysis-tc">Results and Analysis</a><br><br>
-					<a href="#conclusion-tc">Conclusion</a><br><br>
+					<a href="#conclusion-tc">Conclusion and Future Work</a><br><br>
+					<a href="#code-tc">Code</a><br><br>
 				</div>
 			</div>
 		</div>
@@ -416,7 +419,7 @@
             	<img src="./images/image_pair2.png" width=512px/>
 			</div>
 			<div class="margin-right-block">
-			Figure 1: Selected image pairs from our dataset. The above images are sufficiently different so that our image encoder
+			Figure 1: Selected image pairs from our dataset. The images are sufficiently different so that our image encoder
 			can extract meaningful features, but both images also contain several of the same scene indicators so that the reference
 			image actually informs the reconstruction of our target image.
 			</div>
@@ -587,8 +590,15 @@
 			<div class="margin-left-block">
 			</div>
 			<div class="main-content-block">
-				Preliminary results are encouraging, even with the model’s limited training. Figure 5 presents the model's
-				reconstructions of two image pairs from the pre-training dataset.
+				<p>
+				Preliminary results are encouraging, even with the model’s limited training. Figure ? presents the model's
+				reconstructions of two image pairs from the pre-training dataset. Although some visual artifacts are present, a
+				qualitative inspection of the outputs suggests that the model has already developed a reasonable understanding of metric
+				scale. This indicates that incorporating IMU data into the pre-training process helps the model learn embeddings that
+				could be valuable for end-to-end 3D vision tasks. With extended training, we expect the model’s performance to improve
+				even more. A more rigorous methodology for evaluating the quality of the embeddings will be outlined in the Future Work
+				section.
+				</p>
 			</div>
 			<div class="margin-right-block">
 			</div>
@@ -598,12 +608,65 @@
 			<div class="margin-left-block">
 			</div>
 			<div class="main-content-block">
-				<h1>Conclusion</h1>
-				
+				<h1>Conclusion and Future Work</h1>
+				<p>
+				Our preliminary experiments demonstrate that the proposed reconstruction model is capable of learning meaningful spatial
+				representations, even with limited training. Despite the presence of some visual artifacts, the model shows early signs
+				of understanding metric scale and producing structurally plausible reconstructions. These findings suggest that
+				integrating auxiliary signals—such as IMU data—during pre-training can significantly enhance the quality of learned
+				embeddings for downstream 3D vision tasks. While there is still room for improvement, especially in reducing noise and
+				increasing output fidelity, our results highlight the potential of the approach and lay the groundwork for future
+				improvements through extended training and more rigorous evaluation.
+				</p>
+				<h2>Downstream Transfer Learning</h2>
+				<p>
+				Initially, we planned to adapt our model architecture for several downstream visual-inertial transfer tasks, such as
+				monocular depth estimation and pose/displacement estimation, in order to assess whether our embeddings contained
+				relevant information for complex vision tasks like end-to-end reconstruction and localization. This would have allowed
+				us to systematically evaluate how well the learned representations generalize by comparing them with domain-specific
+				architectures designed specifically for the target tasks. However, due to time and computational limitations, we were
+				unable to generate meaningful results. Our output depth estimations were noisy, likely due to an incorrect
+				implementation rather than a fundamental issue with our approach. Nonetheless, we outline our methodology below for
+				future reference.
+				</p>
+
+				<p>
+				To adapt AlligatorNet for downstream vision tasks like depth estimation, we remove the decoder and replace it with a DPT
+				head. While retaining the current attention-based decoder backbone and simply adding a decoder head could potentially
+				improve performance on downstream tasks, simplifying the decoder allows us to more effectively assess the quality of the
+				embeddings. This approach isolates the evaluation of the embeddings themselves, eliminating any influence from
+				additional structural learning that might occur after the embeddings are generated. If these simplified outputs prove
+				comparable to those of task-specific architectures, it would offer strong evidence that our cross-modal representation
+				learning approach can be effectively extended to end-to-end SLAM pipelines in the future.
+				</p>
+
+				<h2>Multi-view Stereo Reconstruction</h2>
+				<p>
+				If downstream evaluation indicates that the embeddings are of high quality, we can extend our work to tackle more
+				complex tasks such as 3D reconstruction. DUSt3R builds on CroCoNet’s architecture by replacing the unified decoder with
+				two cross-attended decoders that predict dense point-maps, which are then combined to reconstruct a scene. Inspired by
+				this, we could adapt a similar approach by modifying AlligatorNet to also predict point-maps--while incorporating IMU
+				data into the pipeline to guide the reconstruction toward metric scale. This would address a key limitation of DUSt3R,
+				whose reconstructions are inherently scale-agnostic. Achieving accurate, scale-aware reconstructions using our
+				cross-modal embeddings would represent an exciting step forward for robotics applications.
+				</p>
+
 			</div>
 			<div class="margin-right-block">
 			</div>
 		</div>
+
+		<div class="content-margin-container" id="code-tc">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<h1>Code</h1>
+				The project codebase is available at <a href="https://github.com/samuel-tian/croco">https://github.com/samuel-tian/croco</a>.
+			</div>
+			<div class="margin-right-block">
+			</div>
+		</div>
+
 
 		<div class="content-margin-container" id="citations">
 			<div class="margin-left-block">
