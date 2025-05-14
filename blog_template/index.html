@@ -315,33 +315,38 @@
 			</div>
 			<div class="main-content-block">
 				<h1>Introduction</h1>
-				<p>
-				Many SLAM systems rely on visual-inertial odometry (VIO), which fuses camera images with IMU data. However, when a
-				visual pipeline fails due to occlusions, poor lighting, or motion blur, the noise inherent in low-cost IMU sensors leads
-				to poor localization. This motivates improving inertial-only methods for more robust SLAM systems.
-				</p>
-				
-				<p>
-				Meanwhile, state-of-the-art end-to-end learning approaches such as DUST3R [10] / MAST3R [7], and VGGT [9], have shown
-				impressive performance on 3D vision tasks and strong potential for improving VIO SLAM. These results suggest that they
-				learn powerful geometric priors that could be used to improve inertial-only navigation. However, in spite of their
-				increased robustness, they can still struggle in poor visual conditions and lack consistent metric scale, which could
-				potentially be mitigated using the additional information IMUs provide. As such, we propose incorporating IMU data into
-				these pipelines to enhance performance across both modalities. Two key questions are:
-				</p>	
-				
-				<ul>
-					<li>Can simultaneous image reconstruction and IMU sequence reconstruction help end-to-end vision models learn metric scale?</li>
-					<li>Can the geometric priors learned by end-to-end vision models improve the accuracy of inertial odometry measurements?</li>
-				</ul>	
-				
-				<p>
-				We introduce Alligator (Attentional Learning for Linked Image Generation And Trajectory Oriented Reasoning), a
-				self-supervised training objective designed for learning joint embeddings for image and temporal IMU data. By utilizing
-				masked sequence modeling, we show that simultaneously learning embeddings across multiple modalities has the potential
-				to yield generalizable representations of visual-inertial data that can be used in a variety of downstream 3D vision
-				tasks.
-				</p>
+               <p>
+               Visual-inertial odometry (VIO) is a fundamental component of many Simultaenous Localization And Mapping (SLAM) systems, where it is used to estimate pose and trajectory
+               by fusing camera images with IMU data. The inclusion of IMU data enable metric scale recovery, while the vision system mitigates
+               drift caused bias and noise in the IMU sensors. State-of-the-art (SOTA) methods such as VINS-MONO and Kimera-Multi have shown robust
+               performance, both on datasets such as KITTI, EuRoC, and Kimera, and in the real-world. However, a VIO system's ability to localize is
+               severely degraded by occlusions, poor lighting, or motion blur. When failures in the vision pipeline occur, the IMU can still provide
+               valuable motion data; however, without camera images to correct the drift, naively integrating noisy IMU data will lead to errors that
+               grow exponentially. Additionally, existing deep learning approaches to inertial odometry, such as TLIO, are primarily trained on pedestrian datasets
+               and generalize poorly. This motivates improving inertial-only methods for more robust SLAM systems.
+               </p>
+              
+               <p>
+               Meanwhile, state-of-the-art end-to-end learning approaches such as DUST3R [10] / MAST3R [7], and VGGT [9], have shown
+               impressive performance for tasks such 3D scene reconstruction, point tracking, and pose estimation for SLAM. This suggests that their
+               training pipelines allow them to learn powerful geometric priors that could be informative for inertial-only navigation. However, despite
+               the robustness of MAST3R [7] and VGGT [9], they still struggle in poor visual conditions and lack consistent metric scale. As such, we
+               propose incorporating IMU data into a similar training pipelines to enhance performance across both modalities. Our two main questions
+               </p>   
+              
+               <ul>
+                   <li>Can simultaneous image reconstruction and IMU sequence reconstruction help end-to-end vision models learn metric scale?</li>
+                   <li>Can the geometric priors learned by end-to-end vision models improve the accuracy of inertial odometry measurements?</li>
+               </ul>  
+              
+               <p>
+               We introduce Alligator (Attentional Learning for Linked Image Generation And Trajectory Oriented Reasoning), a
+               self-supervised training objective designed for learning joint embeddings for image and temporal IMU data. By utilizing
+               masked sequence modeling, we show that simultaneously learning embeddings across multiple modalities has the potential
+               to yield generalizable representations of visual-inertial data that can be used in a variety of downstream 3D vision and SLAM
+               tasks.
+			   </p>
+
 			</div>
 			<div class="margin-right-block">
 			</div>
@@ -353,30 +358,38 @@
 			<div class="main-content-block">
 				<h1>Background</h1>
 				<p>
-				Pretraining via masked image modeling (e.g., CroCoNet [11]) has been key to enabling strong downstream 3D performance.
-				Related work in vision-language learning [4] [12] shows the potential of masked modeling for learning cross-modal
-				representations.
-				</p>
-				
-				<p>
-				End-to-end 3D reconstruction models like DUST3R [10] and MAST3R [5] use vision transformers to estimate dense, aligned
-				point clouds from image pairs without requiring camera calibration. However, they operate on only two views and require
-				post-processing to incorporate more. VGGT [9] improves on this with a feed-forward network that jointly predicts key 3D
-				attributes across multiple views using DINO-pretrained features.
-				</p>
-				
-				<p>
-				In parallel, inertial-only methods like TLIO [6] predict motion from IMU sequences via learned priors, but are sensitive
-				to reference frames and fail to generalize across modalities. Buchanan et al. [1] learn IMU bias evolution but rely on
-				sensor-specific tuning and geometric supervision.
-				</p>
-				
-				<p>
-				To our knowledge, no prior work has combined IMU data with end-to-end 3D vision models.
-				While image-based models can infer 3D scene geometry, IMU sequences also contain implicit 3D information. VGGT
-				demonstrates that training on related tasks can improve performance; as such, we want to understand if combining visual
-				and IMU data can enable calibration-free VIO and lead to more robust SLAM systems.
-				</p>
+					Pretraining via Masked Language Modeling (MLM), where a transformer is trained to predict randomly masked tokens in a
+					text sequence by leveraging both left and right context, has been shown to be an effective self-supervised learning method (e.g., BERT [13]),
+					with signficant success in many NLP tasks. Inspired by MLM, Masked Image Modeling (MIM) has emerged as powerful method for vision
+					tasks, wherein a transformer is instead asked to predict masked patches of an image using unmasked patches as context (e.g., SimMIM[14]).
+					CroCoNet [11] propose the pretraining task of cross-view completion, which builds upon traditional MIM by using both the unmasked patches
+					and a second reference image from a different viewpoint as context to fill in masked patches. They show that leveraging both images leads to
+					improved learning of 3D scene geometry, which has been key to enabling strong performance in downstream tasks such as depth estimation and
+					optical flow. Finally, related work in vision-language learning [4] [12] combine both MLM and MIM, highlighting the potential of masked
+					modeling for learning cross-modal representations.
+					</p>
+				   
+					<p>
+					End-to-end 3D reconstruction models like DUST3R [10] use pretrained vision transformers from CroCoNet to estimate dense, aligned point clouds
+					from image pairs without requiring camera calibration. MAST3R [5] improves upon DUST3R by incorporating geometrical and feature matching. Their strong
+					performance on 3D vision tasks such as scene reconstruction make them strong candidates for use as the visual front-end for SLAM systems.
+					However, they operate on only two views and require ignficant post-processing to incorporate more. VGGT [9] improves on this with a feed-forward network
+					that jointly predicts key 3D attributes across multiple views using DINO-pretrained features.
+					</p>
+				   
+					<p>
+					In parallel, inertial-only methods like TLIO [6] predict motion from IMU sequences via learned priors, but are sensitive
+					to heading and orientation and fail to generalize across modalities. Buchanan et al. [1] learn IMU bias evolution with signficant
+					improvements in generalizability across modalities, but require sensor-specific tuning and geometric supervision. Other methods such as AirIO [15]
+					have seen improved performance on robotic datasets such as EuRoC, these methods fail to effectively learn the 3D geometry of the scenes.
+					</p>
+				   
+					<p>
+					To our knowledge, no prior work has combined IMU data with end-to-end 3D vision models. While image-based models can infer 3D scene geometry,
+					IMU sequences also contain implicit 3D information. VGGT demonstrates that training on related tasks can improve performance; as such, we want
+					to understand if combining visual and IMU data, inspired by combined MLM and MIM ([4], [12]) can enable calibration-free VIO and SLAM systems robust
+					to failures in the vision pipeline
+					</p>
 			</div>
 			<div class="margin-right-block">
 			</div>
@@ -537,6 +550,31 @@
 			</div>
 			<div class="main-content-block">
 				<h2>Downstream Learning: Depth Estimation</h2>
+				<p>
+				We adapt our model architecture for several downstream visual-inertial transfer tasks, such as monocular depth
+				estimation and pose/displacement estimation, in order to assess whether our embeddings contained relevant information
+				for complex vision tasks like end-to-end reconstruction and localization. This will allow us to systematically evaluate
+				how well the learned representations generalize by comparing them with domain-specific architectures designed
+				specifically for the target tasks.
+				</p>
+
+				<p>
+				To adapt AlligatorNet for downstream vision tasks like depth estimation, we remove the decoder and replace it with a DPT
+				head. While retaining the current attention-based decoder backbone and simply adding a decoder head could potentially
+				improve performance on downstream tasks, simplifying the decoder allows us to more effectively assess the quality of the
+				embeddings. This approach isolates the evaluation of the embeddings themselves, eliminating any influence from
+				additional structural learning that might occur after the embeddings are generated. If these simplified outputs prove
+				comparable to those of task-specific architectures, it would offer strong evidence that our cross-modal representation
+				learning approach can be effectively extended to end-to-end SLAM pipelines in the future.
+				</p>
+
+				<p>
+				We train our augmented model on NYUv2, which consists of several labelled video sequences with both RGB and depth visual
+				data across a range of indoor scenes. We used the test-train split as given by NYUv2, which matches the split used by
+				CroCoNet. This amounts to 795 images for training, and 654 images used for testing. In addition, we used the same
+				hyperparameters and transforms as CroCoNet in their evaluation of NYUv2, to ensure fair comparison.
+				</p>
+
 				
 			</div>
 			<div class="margin-right-block">
@@ -568,7 +606,9 @@
 				the encoder with the pretrained CroCoNet encoder weights, which would significantly improve low-resource training
 				because the encoder is already capable of extracting some features relevant for reconstruction. Ultimately, we were only
 				able to train our model for 13 epochs. The pre-training loss is visualized in Figure 4. While we observe significant
-				improvements in our pre-training loss criterion, we unfortunately do not reach convergence.
+				improvements in our pre-training loss criterion, we unfortunately do not reach convergence. However, we believe these
+				results are promising, and suggest that with more time and hyperparameter tuning, AlligatorNet could achieve, at
+				minimum, comparable performance to CroCoNet.
 			</div>
 			<div class="margin-right-block">
 			</div>
@@ -604,6 +644,38 @@
 			</div>
 		</div>
 
+		<div class="content-margin-container" id="analysis">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<img src="./images/depth1.jpeg" width=768px/>
+				<img src="./images/depth2.jpeg" width=768px/>
+				<img src="./images/depth3.jpeg" width=768px/>
+				<img src="./images/depth4.jpeg" width=768px/>
+				<img src="./images/depth5.jpeg" width=768px/>
+				<img src="./images/depth6.jpeg" width=768px/>
+			</div>
+			<div class="margin-right-block">
+				Figure 6: Qualitative visualization of depth estimation examples taken from NYUv2 dataset
+			</div>
+		</div>
+
+		<div class="content-margin-container" id="analysis">
+			<div class="margin-left-block">
+			</div>
+			<div class="main-content-block">
+				<p>
+					Evaluating our augmented model’s performance on the downstream task of depth prediction provides a more robust method
+					for assessing the quality of our embeddings. Our network is capable of generating predictions that achieve >80% delta_1
+					accuracy on the test dataset, highlighting the potential of our method for improving learned embeddings for 3D vision
+					tasks. We achieved an overall delta_1 accuracy of 44.3% on the test dataset; although this is less than CroCoNet’s, we
+					only trained for 150 epochs, as compared to their 1500.
+				</p>
+			</div>
+			<div class="margin-right-block">
+			</div>
+		</div>
+
 		<div class="content-margin-container" id="conclusion-tc">
 			<div class="margin-left-block">
 			</div>
@@ -616,39 +688,29 @@
 				integrating auxiliary signals—such as IMU data—during pre-training can significantly enhance the quality of learned
 				embeddings for downstream 3D vision tasks. While there is still room for improvement, especially in reducing noise and
 				increasing output fidelity, our results highlight the potential of the approach and lay the groundwork for future
-				improvements through extended training and more rigorous evaluation.
-				</p>
-				<h2>Downstream Transfer Learning</h2>
-				<p>
-				Initially, we planned to adapt our model architecture for several downstream visual-inertial transfer tasks, such as
-				monocular depth estimation and pose/displacement estimation, in order to assess whether our embeddings contained
-				relevant information for complex vision tasks like end-to-end reconstruction and localization. This would have allowed
-				us to systematically evaluate how well the learned representations generalize by comparing them with domain-specific
-				architectures designed specifically for the target tasks. However, due to time and computational limitations, we were
-				unable to generate meaningful results. Our output depth estimations were noisy, likely due to an incorrect
-				implementation rather than a fundamental issue with our approach. Nonetheless, we outline our methodology below for
-				future reference.
-				</p>
-
-				<p>
-				To adapt AlligatorNet for downstream vision tasks like depth estimation, we remove the decoder and replace it with a DPT
-				head. While retaining the current attention-based decoder backbone and simply adding a decoder head could potentially
-				improve performance on downstream tasks, simplifying the decoder allows us to more effectively assess the quality of the
-				embeddings. This approach isolates the evaluation of the embeddings themselves, eliminating any influence from
-				additional structural learning that might occur after the embeddings are generated. If these simplified outputs prove
-				comparable to those of task-specific architectures, it would offer strong evidence that our cross-modal representation
-				learning approach can be effectively extended to end-to-end SLAM pipelines in the future.
+				improvements through extended training, hyperparameter tuning, and more rigorous evaluation.
 				</p>
 
 				<h2>Multi-view Stereo Reconstruction</h2>
 				<p>
-				If downstream evaluation indicates that the embeddings are of high quality, we can extend our work to tackle more
-				complex tasks such as 3D reconstruction. DUSt3R builds on CroCoNet’s architecture by replacing the unified decoder with
-				two cross-attended decoders that predict dense point-maps, which are then combined to reconstruct a scene. Inspired by
-				this, we could adapt a similar approach by modifying AlligatorNet to also predict point-maps--while incorporating IMU
+				If further downstream evaluation indicates that the embeddings are of high quality, we can extend our work to tackle
+				more complex tasks such as 3D reconstruction. DUSt3R builds on CroCoNet’s architecture by replacing the unified decoder
+				with two cross-attended decoders that predict dense point-maps, which are then combined to reconstruct a scene. Inspired
+				by this, we could adapt a similar approach by modifying AlligatorNet to also predict point-maps—while incorporating IMU
 				data into the pipeline to guide the reconstruction toward metric scale. This would address a key limitation of DUSt3R,
 				whose reconstructions are inherently scale-agnostic. Achieving accurate, scale-aware reconstructions using our
 				cross-modal embeddings would represent an exciting step forward for robotics applications.
+				</p>
+
+				<h2>Inertial-only Odometry</h2>
+
+				<p>
+				There is also room for further experiments to evaluate the performance of our embeddings for inertial-only odometry.
+				By fixing the visual encoder and training a lightweight IMU‐only head on the shared latent space, we can evaluate
+				whether the combined pretraining method allows for learning geometric priors that improve IMU estimation as well.
+				Gathering datasets with longer trajectories would better show if the cross‐modal features reduce cumulative error even
+				when no images are available. Success in this direction would highlight the robustness of our representations for
+				navigation in situations where vision is limited or unavailable.
 				</p>
 
 			</div>
